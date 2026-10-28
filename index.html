@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VocaQuest - Duolingo風 単語マスター</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Fredoka', 'M PLUS Rounded 1c', sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Duolingo風 押し込みボタンスタイル */
+    .btn-duo {
+      transition: all 0.1s ease;
+      position: relative;
+    }
+    .btn-duo:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: none !important;
+    }
+    .btn-green {
+      background-color: #58cc02;
+      box-shadow: 0 4px 0 #46a302;
+      color: white;
+    }
+    .btn-green:hover:not(:disabled) {
+      background-color: #61e002;
+    }
+    .btn-blue {
+      background-color: #1cb0f6;
+      box-shadow: 0 4px 0 #1899d6;
+      color: white;
+    }
+    .btn-blue:hover:not(:disabled) {
+      background-color: #2bd0ff;
+    }
+    .btn-choice {
+      background-color: #ffffff;
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 3px 0 #d1d5db;
+      color: #374151;
+    }
+    .btn-choice:hover:not(:disabled) {
+      background-color: #f3f4f6;
+      border-color: #cbd5e1;
+    }
+    .btn-choice.selected {
+      border-color: #84cc16;
+      background-color: #f7fee7;
+      box-shadow: 0 3px 0 #65a30d;
+      color: #3f6212;
+    }
+    .btn-choice.correct {
+      border-color: #22c55e !important;
+      background-color: #dcfce7 !important;
+      box-shadow: 0 3px 0 #15803d !important;
+      color: #166534 !important;
+    }
+    .btn-choice.wrong {
+      border-color: #ef4444 !important;
+      background-color: #fee2e2 !important;
+      box-shadow: 0 3px 0 #b91c1c !important;
+      color: #991b1b !important;
+    }
+
+    /* タイル */
+    .letter-tile {
+      background: #ffffff;
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 3px 0 #d1d5db;
+      transition: all 0.15s ease;
+    }
+    .letter-tile:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #d1d5db;
+    }
+    .letter-tile.used {
+      opacity: 0.25;
+      pointer-events: none;
+      box-shadow: none;
+      transform: translateY(2px);
+    }
+
+    /* アニメーション */
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .animate-mascot {
+      animation: bounce 2.2s infinite ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .animate-shake {
+      animation: shake 0.4s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-[#f7f9fa] text-gray-800 min-h-screen flex flex-col justify-between selection:bg-green-100">
+
+  <!-- TOP HEADER -->
+  <header class="w-full bg-white border-b-2 border-gray-200 px-4 py-3 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2 cursor-pointer" onclick="showScreen('home-screen')">
+        <span class="text-3xl">🦉</span>
+        <span class="text-2xl font-black text-[#58cc02] tracking-wider hidden sm:inline">VocaQuest</span>
+      </div>
+
+      <!-- Stats Bar (Quiz Screen Only) -->
+      <div id="header-quiz-stats" class="flex items-center space-x-4 hidden">
+        <!-- Hearts -->
+        <div class="flex items-center text-red-500 font-black text-lg">
+          <span class="mr-1">❤️</span>
+          <span id="hearts-display">5</span>
+        </div>
+        <!-- Streak Combo -->
+        <div class="flex items-center text-amber-500 font-black text-lg">
+          <span class="mr-1">🔥</span>
+          <span id="streak-display">0</span>
+        </div>
+        <!-- XP -->
+        <div class="flex items-center text-yellow-500 font-black text-lg">
+          <span class="mr-1">⚡</span>
+          <span id="xp-display">0</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button id="sound-toggle" onclick="toggleMute()" class="p-2 rounded-xl text-gray-500 hover:bg-gray-100 text-xl" title="音量切替">
+          🔊
+        </button>
+        <button onclick="showScreen('home-screen')" class="text-sm font-bold text-gray-400 hover:text-gray-600 px-2 py-1 rounded-lg">
+          ✕ 終了
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-grow flex flex-col justify-center items-center w-full max-w-3xl mx-auto px-4 py-4">
+
+    <!-- ============================================ -->
+    <!-- SCREEN 1: HOME & UNIT SELECTION              -->
+    <!-- ============================================ -->
+    <div id="home-screen" class="w-full space-y-6">
+      <!-- Hero Banner -->
+      <div class="bg-gradient-to-br from-green-400 to-[#58cc02] rounded-3xl p-6 text-white shadow-lg relative overflow-hidden flex flex-col sm:flex-row items-center justify-between">
+        <div class="z-10 space-y-2 text-center sm:text-left">
+          <div class="inline-block bg-white/20 backdrop-blur-sm text-xs font-black uppercase px-3 py-1 rounded-full">高校必修 英単語</div>
+          <h1 class="text-2xl sm:text-3xl font-black">ターゲット単語特訓！</h1>
+          <p class="text-green-100 text-sm font-semibold max-w-sm">Unit 79〜92 (1060〜1221) の例文を完全収録！1問10秒のスピードクイズで実力を鍛えよう！</p>
+        </div>
+        <div class="text-7xl sm:text-8xl animate-mascot mt-3 sm:mt-0 select-none">
+          🦉
+        </div>
+      </div>
+
+      <!-- Settings Card -->
+      <div class="bg-white rounded-3xl p-5 border-2 border-gray-200 shadow-sm space-y-4">
+        <h2 class="text-lg font-black text-gray-700 flex items-center">
+          <span class="text-2xl mr-2">🎮</span> 出題モードを選択
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button onclick="setMode('en-jp')" id="mode-btn-en-jp" class="mode-btn p-3 rounded-2xl border-2 font-black text-sm text-center flex flex-col items-center justify-center space-y-1 transition-all border-green-500 bg-green-50 text-green-700">
+            <span class="text-xl">🔤 ➡️ 🇯🇵</span>
+            <span>英 ➔ 和訳</span>
+          </button>
+          <button onclick="setMode('jp-en')" id="mode-btn-jp-en" class="mode-btn p-3 rounded-2xl border-2 font-black text-sm text-center flex flex-col items-center justify-center space-y-1 transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300">
+            <span class="text-xl">🇯🇵 ➡️ 🔤</span>
+            <span>和 ➔ 英単語</span>
+          </button>
+          <button onclick="setMode('spelling')" id="mode-btn-spelling" class="mode-btn p-3 rounded-2xl border-2 font-black text-sm text-center flex flex-col items-center justify-center space-y-1 transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300">
+            <span class="text-xl">✏️ 🧩</span>
+            <span>スペル並べ替え</span>
+          </button>
+          <button onclick="setMode('mix')" id="mode-btn-mix" class="mode-btn p-3 rounded-2xl border-2 font-black text-sm text-center flex flex-col items-center justify-center space-y-1 transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300">
+            <span class="text-xl">🎲 🌟</span>
+            <span>ランダムMIX</span>
+          </button>
+        </div>
+
+        <!-- Question Count -->
+        <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+          <span class="text-sm font-bold text-gray-500">1回の出題数:</span>
+          <div class="flex space-x-2">
+            <button onclick="setQuizCount(5)" class="q-count-btn px-3 py-1 rounded-xl text-xs font-bold border-2 border-gray-200 bg-white text-gray-600" data-count="5">5問</button>
+            <button onclick="setQuizCount(10)" class="q-count-btn px-3 py-1 rounded-xl text-xs font-bold border-2 border-green-500 bg-green-50 text-green-700" data-count="10">10問</button>
+            <button onclick="setQuizCount(20)" class="q-count-btn px-3 py-1 rounded-xl text-xs font-bold border-2 border-gray-200 bg-white text-gray-600" data-count="20">20問</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unit Selector Header -->
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-black text-gray-800 flex items-center">
+          <span class="text-2xl mr-2">📚</span> チャレンジするUnitを選択
+        </h2>
+        <div class="flex space-x-2">
+          <button onclick="selectAllUnits(true)" class="text-xs font-bold text-blue-500 hover:underline">全選択</button>
+          <span class="text-gray-300">|</span>
+          <button onclick="selectAllUnits(false)" class="text-xs font-bold text-gray-400 hover:underline">解除</button>
+        </div>
+      </div>
+
+      <!-- Unit Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="unit-grid-container">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Start Button Fixed / Floating -->
+      <div class="sticky bottom-4 pt-2">
+        <button id="start-quiz-btn" onclick="startQuizSession()" class="btn-duo btn-green w-full py-4 rounded-2xl text-lg font-black tracking-wide flex items-center justify-center space-x-2 shadow-lg">
+          <span>クイズをスタート！</span>
+          <span>🚀</span>
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ============================================ -->
+    <!-- SCREEN 2: QUIZ SESSION SCREEN                -->
+    <!-- ============================================ -->
+    <div id="quiz-screen" class="w-full hidden space-y-4">
+      
+      <!-- Top Progress & Timer -->
+      <div class="w-full space-y-2">
+        <div class="flex items-center justify-between text-xs font-black text-gray-400">
+          <span id="question-index-label">QUESTION 1/10</span>
+          <span id="timer-text" class="text-red-500 font-black text-sm flex items-center">
+            ⏱️ <span id="timer-seconds" class="ml-1 text-base">10</span>秒
+          </span>
+        </div>
+
+        <!-- Overall Progress bar -->
+        <div class="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+          <div id="quiz-progress-bar" class="h-full bg-[#58cc02] rounded-full transition-all duration-300" style="width: 10%;"></div>
+        </div>
+
+        <!-- 10-Second Timer Countdown Bar -->
+        <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div id="timer-progress-bar" class="h-full bg-amber-400 rounded-full transition-all ease-linear" style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <!-- Question Card -->
+      <div id="question-card" class="bg-white rounded-3xl p-5 sm:p-7 border-2 border-gray-200 shadow-sm space-y-4">
+        
+        <!-- Unit Badge & Audio Button -->
+        <div class="flex items-center justify-between">
+          <span id="question-unit-badge" class="bg-blue-100 text-blue-700 text-xs font-extrabold px-3 py-1 rounded-full">
+            Unit 79 #1060
+          </span>
+          <div class="flex items-center space-x-2">
+            <!-- Audio Hint Button (JP->EN & Spelling only, 1 time use) -->
+            <button id="hint-audio-btn" onclick="useAudioHint()" class="hidden flex items-center space-x-1.5 text-xs font-black text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-300 transition-colors">
+              <span>💡 音声を1回聴く (<span id="hint-audio-count">1</span>回)</span>
+            </button>
+            <!-- Sentence Pronunciation Button (always available for EN-JP, or after answer) -->
+            <button id="speak-sentence-btn" onclick="speakCurrentSentence()" class="flex items-center space-x-1.5 text-xs font-black text-blue-500 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 transition-colors">
+              <span>🔊 例文を聴く</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Prompt Text / Target Display -->
+        <div>
+          <div id="question-instruction" class="text-xs font-black text-gray-400 uppercase tracking-wider mb-1">
+            空欄に当てはまる日本語の意味を選んでください
+          </div>
+          <h3 id="question-target-display" class="text-xl sm:text-2xl font-black text-gray-800">
+            sore
+          </h3>
+        </div>
+
+        <!-- Example Sentence Bubble -->
+        <div class="bg-gray-50 border-2 border-gray-200/80 rounded-2xl p-4 relative">
+          <div class="text-xs font-extrabold text-gray-400 mb-1 flex items-center justify-between">
+            <span class="flex items-center"><span class="mr-1">💬</span> 例文 (Example Sentence)</span>
+            <!-- Hint Toggle Button for Japanese Translation (EN->JP Mode) -->
+            <button id="hint-jp-btn" onclick="revealJapaneseTranslation()" class="text-xs font-bold text-amber-600 hover:text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-0.5 rounded-lg border border-amber-300 transition-all flex items-center space-x-1">
+              <span>💡 例文の和訳を見る</span>
+            </button>
+          </div>
+          <p id="example-sentence-en" class="text-base sm:text-lg font-bold text-gray-800 leading-relaxed">
+            I have a <span class="text-green-600 underline font-black">sore</span> throat. I may have caught a cold.
+          </p>
+          <!-- Japanese translation: Hidden by default in EN->JP to avoid spoilers -->
+          <p id="example-sentence-jp" class="text-xs sm:text-sm font-semibold text-gray-500 mt-2 border-t border-gray-200/70 pt-2 transition-all">
+            <!-- Dynamically populated or hidden -->
+          </p>
+        </div>
+
+        <!-- Collocation hint if exists -->
+        <div id="collocation-container" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 flex items-center">
+          <span class="mr-1.5 font-extrabold">📌 コロケーション:</span>
+          <span id="collocation-text">sore throat (のどの痛み)</span>
+        </div>
+
+        <!-- CHOICE CONTAINER (Modes: en-jp / jp-en) -->
+        <div id="choices-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <!-- 4 option buttons dynamically generated -->
+        </div>
+
+        <!-- SPELLING CONTAINER (Mode: spelling) -->
+        <div id="spelling-container" class="hidden space-y-4 pt-2">
+          <!-- Slot Boxes -->
+          <div id="spelling-slots" class="flex flex-wrap gap-2 justify-center min-h-[50px] p-2 bg-gray-50 rounded-2xl border border-gray-200">
+            <!-- Selected letters placed here -->
+          </div>
+
+          <!-- Letters Tile Deck -->
+          <div id="spelling-letters-deck" class="flex flex-wrap gap-2 justify-center pt-2">
+            <!-- Scrambled letter tiles -->
+          </div>
+
+          <div class="flex justify-between items-center pt-1">
+            <button onclick="clearSpelling()" class="text-xs font-bold text-gray-400 hover:text-gray-600 px-3 py-1 rounded-lg">
+              クリア
+            </button>
+            <button onclick="removeLastLetter()" class="text-xs font-bold text-gray-400 hover:text-gray-600 px-3 py-1 rounded-lg">
+              ⌫ 1文字消す
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ============================================ -->
+    <!-- SCREEN 3: RESULTS SCREEN                     -->
+    <!-- ============================================ -->
+    <div id="result-screen" class="w-full hidden space-y-6">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 border-2 border-gray-200 shadow-sm text-center space-y-5">
+        
+        <div id="result-mascot" class="text-7xl">🎉</div>
+        
+        <h2 id="result-title" class="text-2xl sm:text-3xl font-black text-gray-800">
+          レッスン完了！素晴らしい！
+        </h2>
+        
+        <!-- Score Highlights -->
+        <div class="grid grid-cols-3 gap-3 max-w-md mx-auto">
+          <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3">
+            <div class="text-xs font-black text-amber-600 uppercase">獲得 XP</div>
+            <div id="final-xp" class="text-2xl font-black text-amber-500">⚡ 120</div>
+          </div>
+          <div class="bg-green-50 border-2 border-green-200 rounded-2xl p-3">
+            <div class="text-xs font-black text-green-600 uppercase">正答率</div>
+            <div id="final-accuracy" class="text-2xl font-black text-green-600">90%</div>
+          </div>
+          <div class="bg-blue-50 border-2 border-blue-200 rounded-2xl p-3">
+            <div class="text-xs font-black text-blue-600 uppercase">最大コンボ</div>
+            <div id="final-combo" class="text-2xl font-black text-blue-500">🔥 7</div>
+          </div>
+        </div>
+
+        <!-- Review Word List Accordion -->
+        <div class="text-left pt-4 border-t border-gray-200">
+          <h4 class="text-sm font-black text-gray-600 mb-3 flex items-center">
+            <span>📝 今回取り組んだ単語一覧</span>
+            <span id="reviewed-count-badge" class="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-bold">10語</span>
+          </h4>
+          <div id="reviewed-words-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <!-- Review rows -->
+          </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+          <button onclick="startQuizSession()" class="btn-duo btn-green py-3.5 rounded-2xl font-black text-base shadow-md">
+            もう一度チャレンジ 🔁
+          </button>
+          <button onclick="showScreen('home-screen')" class="btn-duo btn-choice py-3.5 rounded-2xl font-black text-base">
+            Unit選択に戻る 🏠
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================ -->
+  <!-- DUOLINGO-STYLE BOTTOM FEEDBACK BANNER        -->
+  <!-- ============================================ -->
+  <div id="feedback-banner" class="fixed bottom-0 left-0 right-0 p-4 border-t-2 z-50 transform translate-y-full transition-transform duration-200 ease-out">
+    <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center space-x-3 w-full sm:w-auto">
+        <div id="feedback-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl font-black bg-white shadow">
+          ✓
+        </div>
+        <div>
+          <div id="feedback-headline" class="font-black text-lg">素晴らしい！</div>
+          <div id="feedback-subtext" class="text-xs font-bold text-gray-600">正解です</div>
+        </div>
+      </div>
+      <button id="feedback-next-btn" onclick="handleNextQuestion()" class="btn-duo w-full sm:w-44 py-3 rounded-2xl font-black text-base shadow-sm">
+        次へ進む ➔
+      </button>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC & FULL DATASET -->
+  <script>
+    // ==========================================
+    // 1. VOCABULARY DATABASE (Unit 79 - Unit 92)
+    // ==========================================
+    const VOCAB_DATA = [
+      // Unit 79 (1060-1071)
+      { id: 1060, unit: 79, word: "sore", pos: "【形】", mean: "(炎症などで)痛い", col: "sore throat", colJp: "のどの痛み", exEn: "I have a sore throat. I may have caught a cold.", exJp: "のどの痛みがあります。風邪をひいたのかもしれません。" },
+      { id: 1061, unit: 79, word: "throat", pos: "【名】", mean: "のど", col: "sore throat", colJp: "のどの痛み", exEn: "I have a sore throat. I may have caught a cold.", exJp: "のどの痛みがあります。風邪をひいたのかもしれません。" },
+      { id: 1062, unit: 79, word: "lung", pos: "【名】", mean: "肺", col: "lung cancer", colJp: "肺がん", exEn: "Smokers have a greater risk of getting lung cancer.", exJp: "喫煙者は肺がんになるリスクがより高い。" },
+      { id: 1063, unit: 79, word: "cancer", pos: "【名】", mean: "がん", col: "lung cancer", colJp: "肺がん", exEn: "Smokers have a greater risk of getting lung cancer.", exJp: "喫煙者は肺がんになるリスクがより高い。" },
+      { id: 1064, unit: 79, word: "blood", pos: "【名】", mean: "血液", col: "blood pressure", colJp: "血圧", exEn: "My father has high blood pressure, so he is taking medicine.", exJp: "父は血圧が高いので、薬を飲んでいる。" },
+      { id: 1065, unit: 79, word: "pressure", pos: "【名】", mean: "圧力，プレッシャー", col: "blood pressure", colJp: "血圧", exEn: "My father has high blood pressure, so he is taking medicine.", exJp: "父は血圧が高いので、薬を飲んでいる。" },
+      { id: 1066, unit: 79, word: "burn", pos: "【動】", mean: "…を燃やす，燃える", col: "burn fat", colJp: "脂肪を燃焼させる", exEn: "The best way to burn fat is to walk for more than 20 minutes every day.", exJp: "脂肪を燃焼させる最善の方法は、毎日20分以上歩くことだ。" },
+      { id: 1067, unit: 79, word: "fat", pos: "【名】【形】", mean: "脂肪 / 太った", col: "burn fat", colJp: "脂肪を燃焼させる", exEn: "The best way to burn fat is to walk for more than 20 minutes every day.", exJp: "脂肪を燃焼させる最善の方法は、毎日20分以上歩くことだ。" },
+      { id: 1068, unit: 79, word: "brain", pos: "【名】", mean: "脳", col: "brain function", colJp: "脳の機能", exEn: "Eating some sugar may make your brain function better.", exJp: "少し糖分をとると、脳がより良く機能するかもしれない。" },
+      { id: 1069, unit: 79, word: "function", pos: "【名】【動】", mean: "機能 / (正常に)機能する", col: "brain function", colJp: "脳の機能", exEn: "Eating some sugar may make your brain function better.", exJp: "少し糖分をとると、脳がより良く機能するかもしれない。" },
+      { id: 1070, unit: 79, word: "cell", pos: "【名】", mean: "細胞", col: "cell division", colJp: "細胞分裂", exEn: "I learned about cell division in today's biology class.", exJp: "今日の生物の授業で細胞分裂について学んだ。" },
+      { id: 1071, unit: 79, word: "division", pos: "【名】", mean: "分割，分裂，部門", col: "cell division", colJp: "細胞分裂", exEn: "I learned about cell division in today's biology class.", exJp: "今日の生物の授業で細胞分裂について学んだ。" },
+
+      // Unit 80 (1072-1084)
+      { id: 1072, unit: 80, word: "blind", pos: "【形】", mean: "目の見えない", col: "people who are blind", colJp: "目の見えない人たち", exEn: "Guide dogs are very helpful for people who are blind.", exJp: "盲導犬は目の見えない人たちにとって非常に助けになる。" },
+      { id: 1073, unit: 80, word: "deaf", pos: "【形】", mean: "耳が聞こえない", col: "my grandmother is deaf", colJp: "祖母は耳が遠い", exEn: "Please speak loudly. My grandmother is a little deaf.", exJp: "大きな声で話してください。祖母は少し耳が遠いのです。" },
+      { id: 1074, unit: 80, word: "disabled", pos: "【形】", mean: "障がいのある", col: "disabled students", colJp: "障がいのある生徒", exEn: "Our school is designed so that disabled students can move around easily.", exJp: "私たちの学校は障がいのある生徒が容易に動き回れるように設計されている。" },
+      { id: 1075, unit: 80, word: "barrier", pos: "【名】", mean: "障壁，障害", col: "a barrier to doing", colJp: "～することへの障壁", exEn: "Disability should not be a barrier to taking part in sports.", exJp: "障がいがスポーツに参加する障壁になってはならない。" },
+      { id: 1076, unit: 80, word: "struggle", pos: "【動】", mean: "(Ａと)格闘する，奮闘する", col: "struggle with illness", colJp: "病気と闘う", exEn: "He struggled with illness for most of his life.", exJp: "彼は生涯のほとんどを病気と闘って過ごした。" },
+      { id: 1077, unit: 80, word: "overcome", pos: "【動】", mean: "…を克服する", col: "overcome cancer", colJp: "がんを克服する", exEn: "The actor made a comeback after overcoming cancer.", exJp: "その俳優はがんを克服して復帰を果たした。" },
+      { id: 1078, unit: 80, word: "cure", pos: "【動】【名】", mean: "(人や病気)を治療する / 治療", col: "cure sick children", colJp: "病気の子どもたちを治療する", exEn: "I want to be a doctor and cure sick children.", exJp: "私は医者になって病気の子どもたちを治したい。" },
+      { id: 1079, unit: 80, word: "heal", pos: "【動】", mean: "(傷が)治る，(傷)を治す", col: "my finger has healed", colJp: "私の指が治った", exEn: "I cut my finger last week, but it hasn't healed yet.", exJp: "先週指を切ってしまったが、まだ治っていない。" },
+      { id: 1080, unit: 80, word: "relieve", pos: "【動】", mean: "(苦痛など)を取り除く，安心させる", col: "relieve stress", colJp: "ストレスを取り除く", exEn: "Some students can relieve stress by playing computer games.", exJp: "コンピューターゲームをすることでストレスを解消できる生徒もいる。" },
+      { id: 1081, unit: 80, word: "awful", pos: "【形】", mean: "ひどい", col: "taste awful", colJp: "ひどい味がする", exEn: "I put salt in my coffee by mistake. It tasted awful.", exJp: "間違えてコーヒーに塩を入れてしまった。ひどい味がした。" },
+      { id: 1082, unit: 80, word: "grateful", pos: "【形】", mean: "感謝して", col: "be grateful to A", colJp: "Aに感謝している", exEn: "I was grateful to the nurses for looking after me when I was in the hospital.", exJp: "入院していたとき、看護師さんたちが面倒を見てくれたことに感謝した。" },
+      { id: 1083, unit: 80, word: "harmful", pos: "【形】", mean: "害になる", col: "smoking is harmful", colJp: "喫煙は害になる", exEn: "Smoking is harmful to our health.", exJp: "喫煙は私たちの健康に害を及ぼす。" },
+      { id: 1084, unit: 80, word: "peaceful", pos: "【形】", mean: "平和的な，穏やかな", col: "it is peaceful to do", colJp: "～することは穏やかだ", exEn: "It is much more peaceful to live in the countryside than in the city.", exJp: "都会よりも田舎に住むほうがずっと穏やかだ。" },
+
+      // Unit 81 (1085-1097)
+      { id: 1085, unit: 81, word: "language", pos: "【名】", mean: "言語", col: "speak four languages", colJp: "4カ国語を話す", exEn: "My English teacher can speak four languages.", exJp: "私の英語の先生は4つの言語を話すことができる。" },
+      { id: 1086, unit: 81, word: "vocabulary", pos: "【名】", mean: "語彙", col: "have a large vocabulary", colJp: "語彙が豊富だ", exEn: "He has a large vocabulary. He knows many words.", exJp: "彼は語彙が豊富だ。多くの単語を知っている。" },
+      { id: 1087, unit: 81, word: "letter", pos: "【名】", mean: "文字，手紙", col: "how many letters", colJp: "何文字", exEn: "How many letters are there in the alphabet?", exJp: "アルファベットには何文字ありますか。" },
+      { id: 1088, unit: 81, word: "phrase", pos: "【名】", mean: "表現，言い回し", col: "useful phrases", colJp: "役に立つ表現", exEn: "Please look at the list of useful phrases on page 76.", exJp: "76ページの便利な表現のリストを見てください。" },
+      { id: 1089, unit: 81, word: "sentence", pos: "【名】", mean: "(1つの)文，判決", col: "answer in a sentence", colJp: "文で答える", exEn: "Please answer the question in a sentence.", exJp: "その質問に文で答えてください。" },
+      { id: 1090, unit: 81, word: "passage", pos: "【名】", mean: "(本の)一節，文章", col: "an English passage", colJp: "英語の文章", exEn: "I often try to understand the meaning of an English passage quickly.", exJp: "私はよく英語の文章の意味をすばやく理解しようとする。" },
+      { id: 1091, unit: 81, word: "paragraph", pos: "【名】", mean: "段落", col: "the first paragraph", colJp: "最初の段落", exEn: "The first paragraph is about when people started eating sushi.", exJp: "最初の段落は、人々がいつ寿司を食べ始めたかについてである。" },
+      { id: 1092, unit: 81, word: "spell", pos: "【動】", mean: "…をつづる", col: "spell the word", colJp: "単語をつづる", exEn: "Please check how to spell the word in a dictionary.", exJp: "その単語のつづりを辞書で確認してください。" },
+      { id: 1093, unit: 81, word: "pronounce", pos: "【動】", mean: "…を発音する", col: "difficult to pronounce", colJp: "発音するのが難しい", exEn: "Some English sounds are difficult for learners to pronounce.", exJp: "英語の一部の音は学習者にとって発音するのが難しい。" },
+      { id: 1094, unit: 81, word: "although", pos: "【接】", mean: "…だが", col: "although he is young", colJp: "彼は若いが", exEn: "Although he is young, he is a very good doctor.", exJp: "彼は若いが、非常に優秀な医者だ。" },
+      { id: 1095, unit: 81, word: "however", pos: "【副】", mean: "しかしながら", col: "However, S + V", colJp: "しかし、Sは～する", exEn: "Smartphones are very useful. However, they have negative points, too.", exJp: "スマートフォンはとても便利だ。しかしながら、マイナス面もある。" },
+      { id: 1096, unit: 81, word: "moreover", pos: "【副】", mean: "さらに，その上", col: "Moreover, S + V", colJp: "その上、Sは～する", exEn: "100% orange juice tastes very good. Moreover, it is healthy.", exJp: "果汁100%のオレンジジュースはとても美味しい。その上、健康的だ。" },
+      { id: 1097, unit: 81, word: "therefore", pos: "【副】", mean: "従って，ゆえに", col: "Therefore, S + V", colJp: "ゆえに、Sは～する", exEn: "100% orange juice is healthy. Therefore, I drink it every morning.", exJp: "果汁100%オレンジジュースは健康的だ。従って、私は毎朝飲んでいる。" },
+
+      // Unit 82 (1098-1109)
+      { id: 1098, unit: 82, word: "explain", pos: "【動】", mean: "…を説明する", col: "explain how to do", colJp: "やり方を説明する", exEn: "Can you explain how to use this word?", exJp: "この単語の使い方を説明してくれますか。" },
+      { id: 1099, unit: 82, word: "describe", pos: "【動】", mean: "…を描写する，特徴を説明する", col: "describe one's house", colJp: "家の特徴を説明する", exEn: "Our ALT described her house in New Zealand.", exJp: "ALTの先生はニュージーランドにある彼女の家について説明してくれた。" },
+      { id: 1100, unit: 82, word: "imagine", pos: "【動】", mean: "…を想像する", col: "imagine what S is like", colJp: "Sがどのようかを想像する", exEn: "She tried to imagine what life was like in the Heian era.", exJp: "彼女は平安時代の暮らしがどのようなものだったか想像しようとした。" },
+      { id: 1101, unit: 82, word: "guess", pos: "【動】", mean: "…を推測する，思う", col: "guess the meaning", colJp: "意味を推測する", exEn: "Can you guess the meaning of this word?", exJp: "この単語の意味を推測できますか。" },
+      { id: 1102, unit: 82, word: "wonder", pos: "【動】", mean: "…だろうかと思う", col: "wonder what S looks like", colJp: "Sはどんな様子だろうか", exEn: "I haven't seen Emma for a long time. I wonder what she looks like now.", exJp: "エマに長い間会っていない。彼女は今どんな風貌だろうかと思う。" },
+      { id: 1103, unit: 82, word: "translate", pos: "【動】", mean: "…を翻訳する", col: "translate into A", colJp: "Aに翻訳する", exEn: "The novel has been translated into 14 different languages.", exJp: "その小説は14の異なる言語に翻訳されている。" },
+      { id: 1104, unit: 82, word: "interpret", pos: "【動】", mean: "…を通訳する，解釈する", col: "interpret what he says", colJp: "彼が言うことを通訳する", exEn: "I interpreted what my Canadian friend said for my parents.", exJp: "カナダ人の友人が言ったことを両親のために通訳した。" },
+      { id: 1105, unit: 82, word: "obtain", pos: "【動】", mean: "…を獲得する，手に入れる", col: "obtain information", colJp: "情報を得る", exEn: "To obtain more information, please look at our website.", exJp: "より多くの情報を得るには、私たちのウェブサイトをご覧ください。" },
+      { id: 1106, unit: 82, word: "acquire", pos: "【動】", mean: "…を獲得する，身につける", col: "acquire the skills", colJp: "技術を獲得する", exEn: "Students in this course will acquire the skills to make a speech.", exJp: "このコースの生徒はスピーチをするスキルを身につけることができる。" },
+      { id: 1107, unit: 82, word: "education", pos: "【名】", mean: "教育", col: "English education", colJp: "英語教育", exEn: "English education starts in elementary school now in Japan.", exJp: "日本では現在、小学校で英語教育が始まっている。" },
+      { id: 1108, unit: 82, word: "instruction", pos: "【名】", mean: "指示，取扱説明書", col: "listen to the instructions", colJp: "指示を聞く", exEn: "Listen to the instructions and answer the questions in English.", exJp: "指示を聞いて、英語で質問に答えてください。" },
+      { id: 1109, unit: 82, word: "train", pos: "【動】【名】", mean: "…を訓練する / 列車", col: "train a skater", colJp: "スケート選手を訓練する", exEn: "The Japanese skater is now being trained in Russia.", exJp: "その日本人スケート選手は現在ロシアで訓練を受けている。" },
+
+      // Unit 83 (1110-1119)
+      { id: 1110, unit: 83, word: "mean", pos: "【動】", mean: "…を意味する，～するつもりである", col: "What does A mean?", colJp: "Aはどういう意味ですか", exEn: "What does this phrase mean?", exJp: "このフレーズはどういう意味ですか。" },
+      { id: 1111, unit: 83, word: "prove", pos: "【動】", mean: "…と証明する，…だとわかる", col: "prove to be a mistake", colJp: "間違いだとわかる", exEn: "Changing jobs proved to be a mistake for him.", exJp: "転職したことは彼にとって間違いだったとわかった。" },
+      { id: 1112, unit: 83, word: "argue", pos: "【動】", mean: "…と主張する，論争する", col: "argue that S + V", colJp: "Sが～すると主張する", exEn: "People often argue that nurses should be paid more.", exJp: "看護師はもっと給料をもらうべきだと人々はよく主張する。" },
+      { id: 1113, unit: 83, word: "former", pos: "【形】【名】", mean: "前の，元… / 前者", col: "a former actress", colJp: "元女優", exEn: "A former actress, Audrey Hepburn, later worked hard to help poor children.", exJp: "元女優のオードリー・ヘプバーンは、後に貧しい子どもたちを助けるために熱心に活動した。" },
+      { id: 1114, unit: 83, word: "latter", pos: "【形】【名】", mean: "後者の / 後者", col: "the latter half of A", colJp: "Aの後半", exEn: "Life in Japan completely changed in the latter half of the 20th century.", exJp: "20世紀の後半、日本での生活は完全に変化した。" },
+      { id: 1115, unit: 83, word: "previous", pos: "【形】", mean: "(時間・順序が)前の，直前の", col: "our previous lesson", colJp: "前回の授業", exEn: "In our previous lesson, we learned about volcanoes.", exJp: "前回の授業では、火山について学びました。" },
+      { id: 1116, unit: 83, word: "following", pos: "【形】", mean: "次の，その後ろに続く", col: "on the following day", colJp: "その次の日に", exEn: "Helen flew to Tokyo on the 23rd, and went to Kyoto on the following day.", exJp: "ヘレンは23日に東京へ飛び、その翌日に京都へ行った。" },
+      { id: 1117, unit: 83, word: "remove", pos: "【動】", mean: "…を取り除く，移動する", col: "remove a paragraph", colJp: "段落を取り除く", exEn: "You should remove this paragraph from your essay.", exJp: "あなたの作文からこの段落を取り除くべきだ。" },
+      { id: 1118, unit: 83, word: "replace", pos: "【動】", mean: "…に取って代わる，取り替える", col: "replace fossil fuels", colJp: "化石燃料に取って代わる", exEn: "What is the best source of energy to replace fossil fuels?", exJp: "化石燃料に取って代わる最善のエネルギー源は何だろうか。" },
+      { id: 1119, unit: 83, word: "react", pos: "【動】", mean: "(Aに)反応する", col: "react coolly", colJp: "冷ややかに反応する", exEn: "He told a joke to make her laugh, but she reacted coolly.", exJp: "彼は彼女を笑わせようと冗談を言ったが、彼女は冷ややかに反応した。" },
+
+      // Unit 84 (1120-1131)
+      { id: 1120, unit: 84, word: "main", pos: "【形】", mean: "中心の，最も重要な", col: "main topic", colJp: "主題[中心の話題]", exEn: "The main topic of this passage is Roman architecture.", exJp: "この文章の主なトピックは古代ローマの建築である。" },
+      { id: 1121, unit: 84, word: "topic", pos: "【名】", mean: "話題，トピック", col: "main topic", colJp: "主題[中心の話題]", exEn: "The main topic of this passage is Roman architecture.", exJp: "この文章の主なトピックは古代ローマの建築である。" },
+      { id: 1122, unit: 84, word: "logical", pos: "【形】", mean: "論理的な", col: "logical conclusion", colJp: "論理的な結論", exEn: "You need to finish your essay with a logical conclusion.", exJp: "論理的な結論でエッセイを締めくくる必要がある。" },
+      { id: 1123, unit: 84, word: "conclusion", pos: "【名】", mean: "結論", col: "logical conclusion", colJp: "論理的な結論", exEn: "You need to finish your essay with a logical conclusion.", exJp: "論理的な結論でエッセイを締めくくる必要がある。" },
+      { id: 1124, unit: 84, word: "ignore", pos: "【動】", mean: "…を無視する", col: "ignore the fact", colJp: "事実を無視する", exEn: "We can't ignore the fact that weather patterns are changing.", exJp: "気象パターンが変化しているという事実を私たちは無視できない。" },
+      { id: 1125, unit: 84, word: "fact", pos: "【名】", mean: "事実", col: "ignore the fact", colJp: "事実を無視する", exEn: "We can't ignore the fact that weather patterns are changing.", exJp: "気象パターンが変化しているという事実を私たちは無視できない。" },
+      { id: 1126, unit: 84, word: "various", pos: "【形】", mean: "さまざまな", col: "various opinions", colJp: "さまざまな意見", exEn: "People have various opinions about children using smartphones.", exJp: "子どもがスマートフォンを使うことについて、人々は様々な意見を持っている。" },
+      { id: 1127, unit: 84, word: "opinion", pos: "【名】", mean: "意見，考え", col: "various opinions", colJp: "さまざまな意見", exEn: "People have various opinions about children using smartphones.", exJp: "子どもがスマートフォンを使うことについて、人々は様々な意見を持っている。" },
+      { id: 1128, unit: 84, word: "background", pos: "【名】", mean: "背景，経歴", col: "background knowledge", colJp: "背景知識", exEn: "We often need to use background knowledge to understand a text.", exJp: "文章を理解するために背景知識を活用する必要がよくある。" },
+      { id: 1129, unit: 84, word: "knowledge", pos: "【名】", mean: "知識", col: "background knowledge", colJp: "背景知識", exEn: "We often need to use background knowledge to understand a text.", exJp: "文章を理解するために背景知識を活用する必要がよくある。" },
+      { id: 1130, unit: 84, word: "grammar", pos: "【名】", mean: "文法", col: "grammar rules", colJp: "文法規則", exEn: "Knowing grammar rules is important when you study a foreign language.", exJp: "外国語を勉強するとき、文法規則を知っていることは重要だ。" },
+      { id: 1131, unit: 84, word: "rule", pos: "【名】【動】", mean: "規則，ルール / 支配する", col: "grammar rules", colJp: "文法規則", exEn: "Knowing grammar rules is important when you study a foreign language.", exJp: "外国語を勉強するとき、文法規則を知っていることは重要だ。" },
+
+      // Unit 85 (1132-1141)
+      { id: 1132, unit: 85, word: "conversation", pos: "【名】", mean: "会話", col: "have a conversation", colJp: "会話をする", exEn: "I had an interesting conversation with our ALT about his country.", exJp: "ALTの先生と彼の国について面白い会話をした。" },
+      { id: 1133, unit: 85, word: "dialogue", pos: "【名】", mean: "会話(文)，対話", col: "read the dialogue", colJp: "会話文を読む", exEn: "Please read the dialogue on page 27 in pairs.", exJp: "27ページの対話文をペアで読んでください。" },
+      { id: 1134, unit: 85, word: "communication", pos: "【名】", mean: "情報伝達，意思疎通", col: "a type of communication", colJp: "意思疎通の一形態", exEn: "Gesture is an important type of communication.", exJp: "身振り手振りは意思疎通の重要な形態である。" },
+      { id: 1135, unit: 85, word: "debate", pos: "【名】【動】", mean: "討論(会) / 討論する", col: "topic for debate", colJp: "討論のトピック", exEn: "The topic for today's debate is school uniforms.", exJp: "今日のディベートのテーマは学校の制服です。" },
+      { id: 1136, unit: 85, word: "discussion", pos: "【名】", mean: "話し合い，議論", col: "have a discussion", colJp: "話し合いをする", exEn: "The students are having a discussion about food problems.", exJp: "生徒たちは食料問題について議論をしている。" },
+      { id: 1137, unit: 85, word: "cause", pos: "【名】【動】", mean: "原因 / 引き起こす", col: "the cause of the fire", colJp: "その火事の原因", exEn: "The cause of the fire has not yet been found.", exJp: "火事の原因はまだ判明していない。" },
+      { id: 1138, unit: 85, word: "reason", pos: "【名】", mean: "理由", col: "the main reason", colJp: "主な理由", exEn: "I like children. That is the main reason I want to be a teacher.", exJp: "子どもが好きです。それが教師になりたい主な理由です。" },
+      { id: 1139, unit: 85, word: "probably", pos: "【副】", mean: "おそらく(…だろう)", col: "I will probably pass", colJp: "おそらく合格するだろう", exEn: "I studied hard, so I will probably pass the exam.", exJp: "一生懸命勉強したので、おそらく試験に合格するだろう。" },
+      { id: 1140, unit: 85, word: "perhaps", pos: "【副】", mean: "ひょっとして・たぶん", col: "perhaps I won't pass", colJp: "ひょっとして合格しないかも", exEn: "I didn't study hard, so perhaps I won't pass the exam.", exJp: "あまり勉強しなかったので、おそらく試験に受からないかもしれない。" },
+      { id: 1141, unit: 85, word: "maybe", pos: "【副】", mean: "ひょっとして・たぶん", col: "maybe it will snow", colJp: "ひょっとしたら雪が降るかも", exEn: "It's very cold today. Maybe it will snow tomorrow.", exJp: "今日はとても寒い。もしかしたら明日は雪が降るかもしれない。" },
+
+      // Unit 86 (1142-1153)
+      { id: 1142, unit: 86, word: "mass", pos: "【形】", mean: "大量の，大規模な", col: "the mass media", colJp: "マスメディア", exEn: "We can learn what is happening all over the world through the mass media.", exJp: "私たちはマスメディアを通して世界中で起きていることを知ることができる。" },
+      { id: 1143, unit: 86, word: "media", pos: "【名】", mean: "(マス)メディア，媒体", col: "the mass media", colJp: "マスメディア", exEn: "We can learn what is happening all over the world through the mass media.", exJp: "私たちはマスメディアを通して世界中で起きていることを知ることができる。" },
+      { id: 1144, unit: 86, word: "newspaper", pos: "【名】", mean: "新聞", col: "a newspaper article", colJp: "新聞記事", exEn: "I found an interesting newspaper article about global warming.", exJp: "地球温暖化に関する興味深い新聞記事を見つけた。" },
+      { id: 1145, unit: 86, word: "article", pos: "【名】", mean: "記事，条項", col: "a newspaper article", colJp: "新聞記事", exEn: "I found an interesting newspaper article about global warming.", exJp: "地球温暖化に関する興味深い新聞記事を見つけた。" },
+      { id: 1146, unit: 86, word: "publish", pos: "【動】", mean: "…を出版する，公表する", col: "publish a journal", colJp: "専門誌を出版する", exEn: "The company publishes several journals about medicine each year.", exJp: "その会社は毎年、医学に関する学術誌をいくつか出版している。" },
+      { id: 1147, unit: 86, word: "journal", pos: "【名】", mean: "専門誌，ジャーナル", col: "publish a journal", colJp: "専門誌を出版する", exEn: "The company publishes several journals about medicine each year.", exJp: "その会社は毎年、医学に関する学術誌をいくつか出版している。" },
+      { id: 1148, unit: 86, word: "analyze", pos: "【動】", mean: "…を分析する", col: "analyze data", colJp: "データを分析する", exEn: "First, we have to analyze the data we have collected.", exJp: "まず、私たちは収集したデータを分析しなければならない。" },
+      { id: 1149, unit: 86, word: "data", pos: "【名】", mean: "データ，資料", col: "analyze data", colJp: "データを分析する", exEn: "First, we have to analyze the data we have collected.", exJp: "まず、私たちは収集したデータを分析しなければならない。" },
+      { id: 1150, unit: 86, word: "latest", pos: "【形】", mean: "最新の", col: "the latest technology", colJp: "最新の科学技術", exEn: "The latest technology has made it possible to communicate with anyone at any time.", exJp: "最新のテクノロジーによって、いつでも誰とでも通信することが可能になった。" },
+      { id: 1151, unit: 86, word: "technology", pos: "【名】", mean: "科学技術，テクノロジー", col: "the latest technology", colJp: "最新の科学技術", exEn: "The latest technology has made it possible to communicate with anyone at any time.", exJp: "最新のテクノロジーによって、いつでも誰とでも通信することが可能になった。" },
+      { id: 1152, unit: 86, word: "mobile", pos: "【形】", mean: "移動式の，可動式の", col: "a mobile device", colJp: "携帯機器", exEn: "Mobile devices make it possible to work anywhere.", exJp: "モバイル端末のおかげで、どこででも仕事ができるようになった。" },
+      { id: 1153, unit: 86, word: "device", pos: "【名】", mean: "装置，機器", col: "a mobile device", colJp: "携帯機器", exEn: "Mobile devices make it possible to work anywhere.", exJp: "モバイル端末のおかげで、どこででも仕事ができるようになった。" },
+
+      // Unit 87 (1154-1165)
+      { id: 1154, unit: 87, word: "Internet", pos: "【名】", mean: "インターネット", col: "the Internet is useful", colJp: "インターネットは役に立つ", exEn: "The Internet is useful, but some of the information is not correct.", exJp: "インターネットは便利だが、情報の一部は正確ではない。" },
+      { id: 1155, unit: 87, word: "search", pos: "【動】", mean: "探す，捜索する", col: "search for information", colJp: "情報を探す", exEn: "I searched for some information about Peru on the Internet.", exJp: "インターネットでペルーに関する情報をいくつか検索した。" },
+      { id: 1156, unit: 87, word: "website", pos: "【名】", mean: "ウェブサイト", col: "have a website", colJp: "ウェブサイトを持つ", exEn: "Every school has its own website now.", exJp: "今やどの学校も独自のウェブサイトを持っている。" },
+      { id: 1157, unit: 87, word: "chat", pos: "【動】【名】", mean: "おしゃべりする / チャット", col: "enjoy chatting with A", colJp: "Aとおしゃべりを楽しむ", exEn: "I usually have lunch with my friends, and enjoy chatting with them.", exJp: "私はたいてい友人と昼食をとり、おしゃべりを楽しんでいる。" },
+      { id: 1158, unit: 87, word: "attach", pos: "【動】", mean: "付ける，添付する", col: "attach one's essay", colJp: "レポートを添付する", exEn: "I attached my essay and emailed it to my teacher.", exJp: "作文を添付して先生にメールで送った。" },
+      { id: 1159, unit: 87, word: "gain", pos: "【動】", mean: "手に入れる，獲得する", col: "gain access", colJp: "アクセスする", exEn: "We can easily gain access to websites all over the world.", exJp: "世界中のウェブサイトに簡単にアクセスできる。" },
+      { id: 1160, unit: 87, word: "access", pos: "【名】【動】", mean: "アクセス，接続 / 接続する", col: "gain access", colJp: "アクセスする", exEn: "We can easily gain access to websites all over the world.", exJp: "世界中のウェブサイトに簡単にアクセスできる。" },
+      { id: 1161, unit: 87, word: "error", pos: "【名】", mean: "誤り，エラー", col: "an error message", colJp: "エラーメッセージ", exEn: "After I sent an email to my boss, an error message appeared.", exJp: "上司にメールを送信したあと、エラーメッセージが表示された。" },
+      { id: 1162, unit: 87, word: "message", pos: "【名】", mean: "メッセージ，伝言", col: "an error message", colJp: "エラーメッセージ", exEn: "After I sent an email to my boss, an error message appeared.", exJp: "上司にメールを送信したあと、エラーメッセージが表示された。" },
+      { id: 1163, unit: 87, word: "information", pos: "【名】", mean: "情報", col: "full of information", colJp: "情報にあふれた", exEn: "This book is full of useful information.", exJp: "この本は役立つ情報で満ちている。" },
+      { id: 1164, unit: 87, word: "advice", pos: "【名】", mean: "助言，アドバイス", col: "ask a friend for advice", colJp: "友人にアドバイスを求める", exEn: "I often ask my friends for advice.", exJp: "私はよく友人たちにアドバイスを求める。" },
+      { id: 1165, unit: 87, word: "news", pos: "【名】", mean: "知らせ，ニュース", col: "hear the news", colJp: "そのニュースを聞く", exEn: "I felt very sad to hear the news.", exJp: "その知らせを聞いてとても悲しかった。" },
+
+      // Unit 88 (1166-1175)
+      { id: 1166, unit: 88, word: "weight", pos: "【名】", mean: "重さ，重量", col: "the weight of a whale", colJp: "クジラの体重", exEn: "Can you imagine what the weight of a whale is?", exJp: "クジラの体重がどのくらいか想像できますか。" },
+      { id: 1167, unit: 88, word: "height", pos: "【名】", mean: "高さ，身長", col: "the height of Mt. Fuji", colJp: "富士山の高さ", exEn: "What's the height of Mt. Fuji?", exJp: "富士山の高さはどれくらいですか。" },
+      { id: 1168, unit: 88, word: "degree", pos: "【名】", mean: "(温度・角度の)度，程度", col: "five degrees below zero", colJp: "マイナス5度", exEn: "It was five degrees below zero this morning.", exJp: "今朝は氷点下5度だった。" },
+      { id: 1169, unit: 88, word: "extent", pos: "【名】", mean: "程度，範囲", col: "to some extent", colJp: "ある程度", exEn: "I agree to some extent, but not completely.", exJp: "ある程度は賛同するが、完全には同意しない。" },
+      { id: 1170, unit: 88, word: "simple", pos: "【形】", mean: "単純な，簡潔な", col: "simple expressions", colJp: "簡潔な表現", exEn: "When you speak English, try to use simple expressions.", exJp: "英語を話すときは、簡潔な表現を使うように心がけよう。" },
+      { id: 1171, unit: 88, word: "complex", pos: "【形】", mean: "複雑な，込み入った", col: "a complex problem", colJp: "複雑な問題", exEn: "The decreasing number of children is a complex problem.", exJp: "少子化は複雑な問題である。" },
+      { id: 1172, unit: 88, word: "true", pos: "【形】", mean: "真実の，正しい", col: "his story is true", colJp: "彼の話は真実だ", exEn: "Do you think his story is true?", exJp: "彼の話は本当だと思いますか。" },
+      { id: 1173, unit: 88, word: "false", pos: "【形】", mean: "真実でない，虚偽の", col: "true or false questions", colJp: "正誤問題", exEn: "True or false questions are often used on tests.", exJp: "テストでは正誤判定問題がよく使われる。" },
+      { id: 1174, unit: 88, word: "general", pos: "【形】", mean: "一般的な，全体的な", col: "as a general rule", colJp: "一般的な法則として[概して]", exEn: "As a general rule, children can travel cheaper than adults.", exJp: "概して、子どもは大人より安く旅行できる。" },
+      { id: 1175, unit: 88, word: "specific", pos: "【形】", mean: "特定の，具体的な", col: "a specific name for A", colJp: "Aに対する特定の名前", exEn: "Is there a specific name for this type of cloud?", exJp: "この種類の雲には特定の名前がありますか。" },
+
+      // Unit 89 (1176-1186)
+      { id: 1176, unit: 89, word: "count", pos: "【動】", mean: "…を数える，重要である", col: "count the number", colJp: "数を数える", exEn: "I forgot to count the number of words in my essay.", exJp: "エッセイの単語数を数えるのを忘れてしまった。" },
+      { id: 1177, unit: 89, word: "measure", pos: "【動】【名】", mean: "…をはかる / 対策", col: "measure the amount", colJp: "量をはかる", exEn: "When I cook, I usually don't measure the amount of salt and sugar.", exJp: "料理をするとき、私はたいてい塩や砂糖の量を量らない。" },
+      { id: 1178, unit: 89, word: "calculate", pos: "【動】", mean: "…を計算する", col: "calculate how much", colJp: "どれだけかを計算する", exEn: "I often calculate how much I can spend before I go shopping.", exJp: "買い物に行く前によくいくら使えるか計算する。" },
+      { id: 1179, unit: 89, word: "improve", pos: "【動】", mean: "向上する，向上させる", col: "my English improves", colJp: "私の英語が向上する", exEn: "My English improved a lot when I lived in Scotland for a year.", exJp: "スコットランドに1年間住んでいたとき、英語がずいぶん上達した。" },
+      { id: 1180, unit: 89, word: "decline", pos: "【動】【名】", mean: "減少する，衰退する / 減少", col: "health declines", colJp: "健康が衰える", exEn: "People's health declines if they don't exercise.", exJp: "運動をしないと人々の健康は衰える。" },
+      { id: 1181, unit: 89, word: "twice", pos: "【副】", mean: "2倍，2回", col: "A is twice as tall as B", colJp: "AはBの2倍の高さだ", exEn: "Tokyo Skytree is twice as tall as the Eiffel Tower.", exJp: "東京スカイツリーはエッフェル塔の2倍の高さがある。" },
+      { id: 1182, unit: 89, word: "double", pos: "【動】【形】", mean: "2倍になる，2倍にする / 2倍の", col: "double in size", colJp: "規模が2倍になる", exEn: "The company doubled in size within three years.", exJp: "その会社は3年以内に規模が2倍になった。" },
+      { id: 1183, unit: 89, word: "average", pos: "【形】【名】", mean: "平均の / 平均", col: "the average score", colJp: "平均点", exEn: "The average score on the test was 56.", exJp: "そのテストの平均点は56点だった。" },
+      { id: 1184, unit: 89, word: "total", pos: "【形】【名】", mean: "総計の / 合計", col: "the total cost", colJp: "総費用", exEn: "The total cost of the flights was 180,000 yen.", exJp: "航空運賃の合計は18万円だった。" },
+      { id: 1185, unit: 89, word: "direction", pos: "【名】", mean: "方向，指示", col: "sense of direction", colJp: "方向感覚", exEn: "I have no sense of direction and always get lost.", exJp: "私は方向音痴で、いつも道に迷ってしまう。" },
+      { id: 1186, unit: 89, word: "distance", pos: "【名】", mean: "距離，隔たり", col: "distance between A and B", colJp: "AとBの間の距離", exEn: "What's the distance between Tokyo and Sydney?", exJp: "東京とシドニーの間の距離はどのくらいですか。" },
+
+      // Unit 90 (1187-1198)
+      { id: 1187, unit: 90, word: "way", pos: "【名】", mean: "方法，やり方，道", col: "one's way of thinking", colJp: "考え方", exEn: "I changed my way of thinking about America when I lived there.", exJp: "アメリカに住んでいたとき、私はアメリカに対する考え方を変えた。" },
+      { id: 1188, unit: 90, word: "means", pos: "【名】", mean: "手段", col: "a means of communication", colJp: "コミュニケーション手段", exEn: "English is a good means of international communication.", exJp: "英語は国際コミュニケーションの良い手段である。" },
+      { id: 1189, unit: 90, word: "method", pos: "【名】", mean: "(組織的な)方法，方式", col: "different methods", colJp: "さまざまな方法", exEn: "Different methods have been used to teach English.", exJp: "英語を教えるためにさまざまな手法が用いられてきた。" },
+      { id: 1190, unit: 90, word: "technique", pos: "【名】", mean: "技術，技法", col: "technique for painting", colJp: "描く技術", exEn: "Your technique for painting pictures is very good.", exJp: "あなたの絵を描く技術は素晴らしい。" },
+      { id: 1191, unit: 90, word: "system", pos: "【名】", mean: "制度，システム", col: "the educational system", colJp: "教育制度", exEn: "I believe that we should change the educational system in Japan.", exJp: "日本の教育システムを変えるべきだと私は信じている。" },
+      { id: 1192, unit: 90, word: "standard", pos: "【名】", mean: "基準，水準", col: "the standard of living", colJp: "生活水準", exEn: "Everyone hopes that the standard of living will improve.", exJp: "誰もが生活水準が向上することを望んでいる。" },
+      { id: 1193, unit: 90, word: "category", pos: "【名】", mean: "範疇，部門", col: "three categories", colJp: "3つの部門", exEn: "There are three categories in this speech contest.", exJp: "このスピーチコンテストには3つのカテゴリーがある。" },
+      { id: 1194, unit: 90, word: "equal", pos: "【形】【動】", mean: "等しい / 等しい", col: "A is equal to B", colJp: "AはBに等しい", exEn: "One mile is equal to about 1.6 kilometers.", exJp: "1マイルは約1.6キロメートルに等しい。" },
+      { id: 1195, unit: 90, word: "plus", pos: "【前】", mean: "足す", col: "2 plus 3", colJp: "2足す3", exEn: "2 plus 3 equals 5.", exJp: "2足す3は5に等しい。" },
+      { id: 1196, unit: 90, word: "minus", pos: "【前】", mean: "引く", col: "9 minus 6", colJp: "9引く6", exEn: "9 minus 6 equals 3.", exJp: "9引く6は3に等しい。" },
+      { id: 1197, unit: 90, word: "multiply", pos: "【動】", mean: "(数を)掛ける，増やす", col: "5 multiplied by 4", colJp: "5掛ける4", exEn: "5 multiplied by 4 equals 20.", exJp: "5かける4は20に等しい。" },
+      { id: 1198, unit: 90, word: "divide", pos: "【動】", mean: "(数を)割る，分ける", col: "12 divided by 3", colJp: "12割る3", exEn: "12 divided by 3 equals 4.", exJp: "12割る3は4に等しい。" },
+
+      // Unit 91 (1199-1210)
+      { id: 1199, unit: 91, word: "farmer", pos: "【名】", mean: "農場経営者，農家", col: "my parents are farmers", colJp: "両親は農場経営者だ", exEn: "My parents are both farmers. They grow apples.", exJp: "私の両親はどちらも農家です。リンゴを栽培しています。" },
+      { id: 1200, unit: 91, word: "clerk", pos: "【名】", mean: "事務員，係", col: "a bank clerk", colJp: "銀行員", exEn: "My cousin has been working as a bank clerk since she finished college.", exJp: "いとこは大学を卒業して以来、銀行員として働いている。" },
+      { id: 1201, unit: 91, word: "owner", pos: "【名】", mean: "持ち主，店の経営者", col: "the owner of the car", colJp: "その車の持ち主", exEn: "The police are looking for the owner of the car.", exJp: "警察はその車の持ち主を探している。" },
+      { id: 1202, unit: 91, word: "manager", pos: "【名】", mean: "支配人，経営者，責任者", col: "the manager of a hotel", colJp: "ホテルの支配人", exEn: "Her husband is the manager of a hotel in Hawaii.", exJp: "彼女の夫はハワイのホテルの支配人をしている。" },
+      { id: 1203, unit: 91, word: "secretary", pos: "【名】", mean: "秘書", col: "manager's secretary", colJp: "経営者の秘書", exEn: "My sister is a company manager's secretary.", exJp: "姉は会社の社長秘書をしている。" },
+      { id: 1204, unit: 91, word: "assistant", pos: "【名】", mean: "助手，アシスタント", col: "a lab assistant", colJp: "実験助手", exEn: "Mr. Hayashi is a lab assistant at my college.", exJp: "林さんは私の大学の研究室助手です。" },
+      { id: 1205, unit: 91, word: "economy", pos: "【名】", mean: "経済", col: "the Japanese economy", colJp: "日本の経済", exEn: "The computer industry is important for the Japanese economy.", exJp: "コンピュータ産業は日本経済にとって重要である。" },
+      { id: 1206, unit: 91, word: "economics", pos: "【名】", mean: "経済学", col: "study economics", colJp: "経済学を勉強する", exEn: "She is studying economics at Oxford University.", exJp: "彼女はオックスフォード大学で経済学を学んでいる。" },
+      { id: 1207, unit: 91, word: "economic", pos: "【形】", mean: "経済の", col: "economic growth", colJp: "経済成長", exEn: "The economic growth this year is slower than last year.", exJp: "今年の経済成長は昨年よりも緩やかだ。" },
+      { id: 1208, unit: 91, word: "economical", pos: "【形】", mean: "経済的な，お得な", col: "an economical small car", colJp: "経済的な小型車", exEn: "My father has just bought an economical small car.", exJp: "父は燃費の良い経済的な小型車を買ったばかりだ。" },
+      { id: 1209, unit: 91, word: "profit", pos: "【名】", mean: "(金銭的な)利益", col: "divide the profit", colJp: "利益を分ける", exEn: "He sold some land and divided the profit between his two sons.", exJp: "彼は土地を売り、その利益を2人の息子たちで分けた。" },
+      { id: 1210, unit: 91, word: "benefit", pos: "【名】", mean: "(様々な意味の)利益，恩恵", col: "have many benefits", colJp: "多くの利益がある", exEn: "Living in the countryside has many benefits for our health.", exJp: "田舎で暮らすことは健康に多くの利点がある。" },
+
+      // Unit 92 (1211-1221)
+      { id: 1211, unit: 92, word: "attend", pos: "【動】", mean: "…に出席する", col: "attend the conference", colJp: "会議に出席する", exEn: "Are you going to attend the conference in November?", exJp: "11月の会議には出席されますか。" },
+      { id: 1212, unit: 92, word: "conference", pos: "【名】", mean: "(大規模な)会議", col: "attend the conference", colJp: "会議に出席する", exEn: "Are you going to attend the conference in November?", exJp: "11月の会議には出席されますか。" },
+      { id: 1213, unit: 92, word: "international", pos: "【形】", mean: "国際的な", col: "international relations", colJp: "国際関係", exEn: "It is important for every country to keep good international relations.", exJp: "すべての国にとって良好な国際関係を維持することが重要である。" },
+      { id: 1214, unit: 92, word: "relation", pos: "【名】", mean: "(国家・団体間の)関係", col: "international relations", colJp: "国際関係", exEn: "It is important for every country to keep good international relations.", exJp: "すべての国にとって良好な国際関係を維持することが重要である。" },
+      { id: 1215, unit: 92, word: "official", pos: "【形】", mean: "公式の", col: "official documents", colJp: "公式文書", exEn: "I always keep official documents in safe places.", exJp: "公的文書は常に安全な場所に保管している。" },
+      { id: 1216, unit: 92, word: "document", pos: "【名】", mean: "文書，書類", col: "official documents", colJp: "公式文書", exEn: "I always keep official documents in safe places.", exJp: "公的文書は常に安全な場所に保管している。" },
+      { id: 1217, unit: 92, word: "application", pos: "【名】", mean: "申し込み，アプリ", col: "an application form", colJp: "申し込み用紙", exEn: "We need to fill in the application form to attend the conference.", exJp: "会議に出席するために申込用紙に記入する必要がある。" },
+      { id: 1218, unit: 92, word: "form", pos: "【名】【動】", mean: "用紙 / 形作る", col: "an application form", colJp: "申し込み用紙", exEn: "We need to fill in the application form to attend the conference.", exJp: "会議に出席するために申込用紙に記入する必要がある。" },
+      { id: 1219, unit: 92, word: "highway", pos: "【名】", mean: "幹線道路，ハイウェイ", col: "a busy highway", colJp: "交通量の多い幹線道路", exEn: "Our school is next to a busy highway.", exJp: "私たちの学校は交通量の多い幹線道路の隣にある。" },
+      { id: 1220, unit: 92, word: "airline", pos: "【名】", mean: "航空会社，航空路線", col: "a large airline", colJp: "大きな航空会社", exEn: "There are two large airlines in Japan.", exJp: "日本には2つの大きな航空会社がある。" },
+      { id: 1221, unit: 92, word: "railroad", pos: "【名】", mean: "鉄道", col: "a railroad station", colJp: "鉄道駅", exEn: "There used to be two railroad stations in this town.", exJp: "かつてこの町には2つの鉄道駅があった。" }
+    ];
+
+    // ==========================================
+    // 2. AUDIO SYNTHESIS & SFX (Web Audio API)
+    // ==========================================
+    let isMuted = false;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      if (isMuted) return;
+      try {
+        initAudio();
+        const now = audioCtx.currentTime;
+        if (type === 'correct') {
+          // Duolingo-style pleasant chord fanfare
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+
+          osc1.frequency.setValueAtTime(523.25, now); // C5
+          osc1.frequency.setValueAtTime(659.25, now + 0.1); // E5
+          osc1.frequency.setValueAtTime(783.99, now + 0.2); // G5
+          osc1.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+          osc1.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc1.start(now);
+          osc1.stop(now + 0.6);
+        } else if (type === 'wrong') {
+          // Boing/buzz error sound
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.35);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'timeout') {
+          // Low double thud
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(140, now);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'click') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      document.getElementById('sound-toggle').innerText = isMuted ? '🔇' : '🔊';
+    }
+
+    // Web Speech API for native pronunciation
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.95;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // ==========================================
+    // 3. APP STATE & CONFIGURATION
+    // ==========================================
+    const state = {
+      selectedUnits: new Set([79]), // default Unit 79
+      mode: 'en-jp', // 'en-jp', 'jp-en', 'spelling', 'mix'
+      quizCount: 10,
+      
+      // Active Session
+      questions: [],
+      currentIndex: 0,
+      hearts: 5,
+      streak: 0,
+      maxStreak: 0,
+      xp: 0,
+      correctCount: 0,
+      reviewedWords: [], // track answers for results
+      
+      // Timer
+      timeLeft: 10,
+      timerInterval: null,
+      isAnswered: false,
+
+      // Hints
+      audioHintsLeft: 1,
+
+      // Spelling state
+      spellingUserInput: [],
+      spellingTarget: ""
+    };
+
+    // ==========================================
+    // 4. SCREEN FLOW & NAVIGATION
+    // ==========================================
+    function showScreen(screenId) {
+      document.getElementById('home-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.add('hidden');
+      document.getElementById('header-quiz-stats').classList.add('hidden');
+
+      // Dismiss banner if visible
+      hideFeedbackBanner();
+      clearInterval(state.timerInterval);
+
+      document.getElementById(screenId).classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      if (screenId === 'quiz-screen') {
+        document.getElementById('header-quiz-stats').classList.remove('hidden');
+      }
+    }
+
+    // ==========================================
+    // 5. INITIALIZATION & UNIT RENDER
+    // ==========================================
+    function renderUnitGrid() {
+      const container = document.getElementById('unit-grid-container');
+      container.innerHTML = '';
+
+      // Distinct units from data
+      const units = [...new Set(VOCAB_DATA.map(v => v.unit))].sort((a,b)=>a-b);
+
+      units.forEach(unit => {
+        const wordsInUnit = VOCAB_DATA.filter(v => v.unit === unit);
+        const card = document.createElement('div');
+        const isChecked = state.selectedUnits.has(unit);
+
+        card.className = `cursor-pointer p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+          isChecked 
+            ? 'border-[#58cc02] bg-[#f7fee7] text-gray-800 shadow-sm' 
+            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+        }`;
+        card.id = `unit-card-${unit}`;
+        card.onclick = () => toggleUnit(unit);
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black uppercase text-green-600 bg-white px-2 py-0.5 rounded-md border border-green-200">
+              Unit ${unit}
+            </span>
+            <span class="text-base select-none ${isChecked ? 'opacity-100' : 'opacity-20'}">
+              ${isChecked ? '✅' : '⚪'}
+            </span>
+          </div>
+          <div class="mt-2">
+            <div class="text-sm font-black text-gray-800">
+              #${wordsInUnit[0].id}〜#${wordsInUnit[wordsInUnit.length-1].id}
+            </div>
+            <div class="text-xs font-bold text-gray-400 mt-0.5">
+              ${wordsInUnit.length} 単語収録
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function toggleUnit(unit) {
+      playSound('click');
+      if (state.selectedUnits.has(unit)) {
+        if (state.selectedUnits.size > 1) {
+          state.selectedUnits.delete(unit);
+        }
+      } else {
+        state.selectedUnits.add(unit);
+      }
+      renderUnitGrid();
+    }
+
+    function selectAllUnits(selectAll) {
+      playSound('click');
+      const units = [...new Set(VOCAB_DATA.map(v => v.unit))];
+      if (selectAll) {
+        units.forEach(u => state.selectedUnits.add(u));
+      } else {
+        state.selectedUnits.clear();
+        state.selectedUnits.add(79); // keep at least 1
+      }
+      renderUnitGrid();
+    }
+
+    function setMode(mode) {
+      playSound('click');
+      state.mode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
+        btn.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
+      });
+      const activeBtn = document.getElementById(`mode-btn-${mode}`);
+      activeBtn.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
+      activeBtn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+    }
+
+    function setQuizCount(count) {
+      playSound('click');
+      state.quizCount = count;
+      document.querySelectorAll('.q-count-btn').forEach(btn => {
+        if (parseInt(btn.dataset.count) === count) {
+          btn.classList.remove('border-gray-200', 'bg-white', 'text-gray-600');
+          btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+        } else {
+          btn.classList.remove('border-green-500', 'bg-green-50', 'text-green-700');
+          btn.classList.add('border-gray-200', 'bg-white', 'text-gray-600');
+        }
+      });
+    }
+
+    // ==========================================
+    // 6. QUIZ SESSION GENERATION & LIFECYCLE
+    // ==========================================
+    function startQuizSession() {
+      initAudio();
+      playSound('click');
+
+      // Filter words by selected units
+      const pool = VOCAB_DATA.filter(item => state.selectedUnits.has(item.unit));
+      if (pool.length === 0) return;
+
+      // Shuffle & pick questions
+      const shuffledPool = [...pool].sort(() => 0.5 - Math.random());
+      const selectedWords = shuffledPool.slice(0, Math.min(state.quizCount, shuffledPool.length));
+
+      // Build question objects
+      state.questions = selectedWords.map(wordItem => {
+        // Resolve mode if 'mix'
+        let qMode = state.mode;
+        if (qMode === 'mix') {
+          const modes = ['en-jp', 'jp-en', 'spelling'];
+          qMode = modes[Math.floor(Math.random() * modes.length)];
+        }
+        return {
+          item: wordItem,
+          qMode: qMode
+        };
+      });
+
+      // Reset state counters
+      state.currentIndex = 0;
+      state.hearts = 5;
+      state.streak = 0;
+      state.maxStreak = 0;
+      state.xp = 0;
+      state.correctCount = 0;
+      state.reviewedWords = [];
+
+      updateStatsUI();
+      showScreen('quiz-screen');
+      loadQuestion(0);
+    }
+
+    function updateStatsUI() {
+      document.getElementById('hearts-display').innerText = state.hearts;
+      document.getElementById('streak-display').innerText = state.streak;
+      document.getElementById('xp-display').innerText = state.xp;
+    }
+
+    // ==========================================
+    // 7. QUESTION RENDERING & 10s TIMER
+    // ==========================================
+    function loadQuestion(index) {
+      clearInterval(state.timerInterval);
+      state.isAnswered = false;
+      state.audioHintsLeft = 1; // Reset audio hint per question
+      hideFeedbackBanner();
+
+      const q = state.questions[index];
+      const total = state.questions.length;
+      const wordItem = q.item;
+
+      // Progress bar
+      const progressPercent = ((index) / total) * 100;
+      document.getElementById('quiz-progress-bar').style.width = `${progressPercent}%`;
+      document.getElementById('question-index-label').innerText = `QUESTION ${index + 1}/${total}`;
+
+      // Unit badge
+      document.getElementById('question-unit-badge').innerText = `Unit ${wordItem.unit} #${wordItem.id} ${wordItem.pos}`;
+
+      // Target regex matching word (case-insensitive)
+      const regex = new RegExp(`\\b(${wordItem.word})\\b`, 'i');
+
+      const choicesContainer = document.getElementById('choices-container');
+      const spellingContainer = document.getElementById('spelling-container');
+      const jpSentenceElem = document.getElementById('example-sentence-jp');
+      const hintJpBtn = document.getElementById('hint-jp-btn');
+      const hintAudioBtn = document.getElementById('hint-audio-btn');
+      const hintAudioCount = document.getElementById('hint-audio-count');
+
+      // Reset Audio Hint button UI
+      hintAudioCount.innerText = "1";
+      hintAudioBtn.disabled = false;
+      hintAudioBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+
+      if (q.qMode === 'en-jp') {
+        // EN -> JP 4 Choices
+        choicesContainer.classList.remove('hidden');
+        spellingContainer.classList.add('hidden');
+        hintAudioBtn.classList.add('hidden'); // Not needed since target is visible
+
+        // In EN->JP, hide Japanese translation by default so it doesn't give away the answer!
+        hintJpBtn.classList.remove('hidden');
+        hintJpBtn.innerHTML = '<span>💡 例文の和訳を見る</span>';
+        hintJpBtn.disabled = false;
+        jpSentenceElem.classList.add('hidden');
+        jpSentenceElem.innerText = wordItem.exJp;
+
+        // In EN->JP, collocation Japanese is also hidden by default to prevent spoiler
+        if (wordItem.col) {
+          document.getElementById('collocation-container').classList.remove('hidden');
+          document.getElementById('collocation-text').innerText = `${wordItem.col} (和訳は選択肢から推測しよう)`;
+        } else {
+          document.getElementById('collocation-container').classList.add('hidden');
+        }
+
+        document.getElementById('question-instruction').innerText = "英語の単語と例文に合う日本語の意味を選んでください";
+        document.getElementById('question-target-display').innerText = `${wordItem.word} ${wordItem.pos}`;
+
+        // Sentence highlights word
+        document.getElementById('example-sentence-en').innerHTML = wordItem.exEn.replace(
+          regex,
+          `<span class="text-green-600 underline font-black">$1</span>`
+        );
+
+        renderChoices(wordItem, 'mean');
+
+        // Safe to pronounce target word automatically only in EN->JP
+        setTimeout(() => {
+          speakText(wordItem.word);
+        }, 200);
+
+      } else {
+        // JP -> EN (Choices) OR Spelling Mode
+        // Japanese translation IS allowed here (it gives context for the blank), but English audio must NOT auto-play!
+        hintJpBtn.classList.add('hidden');
+        jpSentenceElem.classList.remove('hidden');
+        jpSentenceElem.innerText = wordItem.exJp;
+
+        // Show 1-time audio hint button
+        hintAudioBtn.classList.remove('hidden');
+
+        if (wordItem.col) {
+          document.getElementById('collocation-container').classList.remove('hidden');
+          document.getElementById('collocation-text').innerText = `${wordItem.col} (${wordItem.colJp})`;
+        } else {
+          document.getElementById('collocation-container').classList.add('hidden');
+        }
+
+        if (q.qMode === 'jp-en') {
+          choicesContainer.classList.remove('hidden');
+          spellingContainer.classList.add('hidden');
+
+          document.getElementById('question-instruction').innerText = "文の空欄に入る適切な英単語を選んでください";
+          document.getElementById('question-target-display').innerText = `${wordItem.mean} ${wordItem.pos}`;
+
+          // Sentence has blank: [ _____ ]
+          document.getElementById('example-sentence-en').innerHTML = wordItem.exEn.replace(
+            regex,
+            `<span class="bg-amber-100 text-amber-800 px-3 py-0.5 rounded-lg border-2 border-dashed border-amber-300 font-black">_____</span>`
+          );
+
+          renderChoices(wordItem, 'word');
+        } else if (q.qMode === 'spelling') {
+          choicesContainer.classList.add('hidden');
+          spellingContainer.classList.remove('hidden');
+
+          document.getElementById('question-instruction').innerText = "文字タイルを順番にタップしてスペルを完成させよう！";
+          document.getElementById('question-target-display').innerText = `${wordItem.mean} (${wordItem.pos})`;
+
+          // Sentence has blank
+          document.getElementById('example-sentence-en').innerHTML = wordItem.exEn.replace(
+            regex,
+            `<span class="bg-amber-100 text-amber-800 px-3 py-0.5 rounded-lg border-2 border-dashed border-amber-300 font-black">_____</span>`
+          );
+
+          setupSpellingDeck(wordItem.word);
+        }
+        // NOTE: Strictly NO automatic speech here so answer isn't revealed!
+      }
+
+      // Start 10-Second Timer
+      startQuestionTimer();
+    }
+
+    // ==========================================
+    // HINT FUNCTIONS
+    // ==========================================
+    function revealJapaneseTranslation() {
+      if (state.isAnswered) return;
+      playSound('click');
+      const jpSentenceElem = document.getElementById('example-sentence-jp');
+      const hintJpBtn = document.getElementById('hint-jp-btn');
+      const q = state.questions[state.currentIndex];
+
+      jpSentenceElem.classList.remove('hidden');
+      hintJpBtn.innerHTML = '<span>👁️ 和訳表示中</span>';
+      hintJpBtn.disabled = true;
+
+      // Also reveal collocation Japanese if present
+      if (q.item.col) {
+        document.getElementById('collocation-text').innerText = `${q.item.col} (${q.item.colJp})`;
+      }
+    }
+
+    function useAudioHint() {
+      if (state.isAnswered || state.audioHintsLeft <= 0) return;
+      playSound('click');
+      const q = state.questions[state.currentIndex];
+      state.audioHintsLeft--;
+
+      // Pronounce target word
+      speakText(q.item.word);
+
+      // Update button state
+      const hintAudioBtn = document.getElementById('hint-audio-btn');
+      const hintAudioCount = document.getElementById('hint-audio-count');
+      hintAudioCount.innerText = "0";
+      hintAudioBtn.disabled = true;
+      hintAudioBtn.classList.add('opacity-40', 'cursor-not-allowed');
+    }
+
+    function renderChoices(correctItem, keyToDisplay) {
+      const container = document.getElementById('choices-container');
+      container.innerHTML = '';
+
+      // Generate 3 random distractors from dataset
+      const distractors = [];
+      const pool = VOCAB_DATA.filter(v => v.id !== correctItem.id);
+      const shuffled = [...pool].sort(() => 0.5 - Math.random());
+
+      for (let item of shuffled) {
+        if (!distractors.some(d => d[keyToDisplay] === item[keyToDisplay]) && item[keyToDisplay] !== correctItem[keyToDisplay]) {
+          distractors.push(item);
+        }
+        if (distractors.length >= 3) break;
+      }
+
+      const options = [correctItem, ...distractors].sort(() => 0.5 - Math.random());
+
+      options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-duo btn-choice p-4 rounded-2xl text-left font-black text-base flex items-center justify-between';
+        btn.innerHTML = `
+          <span>${opt[keyToDisplay]}</span>
+          <span class="text-xs bg-gray-100 text-gray-400 px-2 py-1 rounded-md font-bold">${idx + 1}</span>
+        `;
+        btn.onclick = () => selectChoice(opt.id === correctItem.id, btn, correctItem);
+        container.appendChild(btn);
+      });
+    }
+
+    // ==========================================
+    // 8. 10-SECOND TIMER & AUTO TIMEOUT
+    // ==========================================
+    function startQuestionTimer() {
+      state.timeLeft = 10;
+      updateTimerDisplay();
+
+      const timerBar = document.getElementById('timer-progress-bar');
+      timerBar.style.width = '100%';
+      timerBar.style.backgroundColor = '#f59e0b'; // amber
+
+      const startTime = Date.now();
+      const totalMs = 10000;
+
+      state.timerInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, totalMs - elapsed);
+        state.timeLeft = Math.ceil(remaining / 1000);
+
+        const percent = (remaining / totalMs) * 100;
+        timerBar.style.width = `${percent}%`;
+
+        if (percent < 30) {
+          timerBar.style.backgroundColor = '#ef4444'; // red danger
+        }
+
+        updateTimerDisplay();
+
+        if (remaining <= 0) {
+          clearInterval(state.timerInterval);
+          handleTimeOut();
+        }
+      }, 100);
+    }
+
+    function updateTimerDisplay() {
+      document.getElementById('timer-seconds').innerText = state.timeLeft;
+    }
+
+    function handleTimeOut() {
+      if (state.isAnswered) return;
+      state.isAnswered = true;
+      playSound('timeout');
+
+      // Reveal translations if hidden
+      document.getElementById('example-sentence-jp').classList.remove('hidden');
+      const q = state.questions[state.currentIndex];
+      if (q.item.col) {
+        document.getElementById('collocation-text').innerText = `${q.item.col} (${q.item.colJp})`;
+      }
+
+      // Deduct heart and streak
+      state.hearts = Math.max(0, state.hearts - 1);
+      state.streak = 0;
+      updateStatsUI();
+
+      recordReviewWord(q.item, false, '時間切れ');
+
+      // Visual feedback
+      document.getElementById('question-card').classList.add('animate-shake');
+      setTimeout(() => document.getElementById('question-card').classList.remove('animate-shake'), 400);
+
+      // Highlight correct choice if 4-choice mode
+      if (q.qMode === 'en-jp' || q.qMode === 'jp-en') {
+        const key = q.qMode === 'en-jp' ? 'mean' : 'word';
+        const buttons = document.querySelectorAll('#choices-container button');
+        buttons.forEach(b => {
+          if (b.innerText.includes(q.item[key])) {
+            b.classList.add('correct');
+          }
+          b.disabled = true;
+        });
+      }
+
+      showFeedbackBanner(
+        false, 
+        '時間切れ！⏰ (10秒経過)', 
+        `正解: <span class="font-bold underline">${q.item.word}</span>【${q.item.pos}】${q.item.mean}`
+      );
+    }
+
+    // ==========================================
+    // 9. CHOICE & SPELLING CHECK LOGIC
+    // ==========================================
+    function selectChoice(isCorrect, buttonElem, correctItem) {
+      if (state.isAnswered) return;
+      state.isAnswered = true;
+      clearInterval(state.timerInterval);
+
+      // Always reveal full Japanese sentence and collocation upon answering
+      document.getElementById('example-sentence-jp').classList.remove('hidden');
+      if (correctItem.col) {
+        document.getElementById('collocation-text').innerText = `${correctItem.col} (${correctItem.colJp})`;
+      }
+
+      // Disable all choice buttons
+      const buttons = document.querySelectorAll('#choices-container button');
+      buttons.forEach(b => b.disabled = true);
+
+      if (isCorrect) {
+        playSound('correct');
+        buttonElem.classList.add('correct');
+
+        state.streak += 1;
+        if (state.streak > state.maxStreak) state.maxStreak = state.streak;
+        const xpGained = 10 + (state.streak >= 3 ? 5 : 0);
+        state.xp += xpGained;
+        state.correctCount += 1;
+        updateStatsUI();
+
+        recordReviewWord(correctItem, true);
+
+        const streakBonusText = state.streak >= 3 ? ` 🔥 ${state.streak}連続正解! (+${xpGained} XP)` : ` (+${xpGained} XP)`;
+        showFeedbackBanner(true, '正解です！' + streakBonusText, `${correctItem.word} : ${correctItem.mean}`);
+      } else {
+        playSound('wrong');
+        buttonElem.classList.add('wrong');
+
+        // Highlight correct button
+        const q = state.questions[state.currentIndex];
+        const key = q.qMode === 'en-jp' ? 'mean' : 'word';
+        buttons.forEach(b => {
+          if (b.innerText.includes(correctItem[key])) {
+            b.classList.add('correct');
+          }
+        });
+
+        document.getElementById('question-card').classList.add('animate-shake');
+        setTimeout(() => document.getElementById('question-card').classList.remove('animate-shake'), 400);
+
+        state.hearts = Math.max(0, state.hearts - 1);
+        state.streak = 0;
+        updateStatsUI();
+
+        recordReviewWord(correctItem, false, '誤答');
+        showFeedbackBanner(false, 'おしい！ちがいます', `正解は: <strong>${correctItem.word}</strong> (${correctItem.mean})`);
+      }
+    }
+
+    // SPELLING LOGIC
+    function setupSpellingDeck(targetWord) {
+      state.spellingTarget = targetWord.toLowerCase().trim();
+      state.spellingUserInput = [];
+
+      const slotsContainer = document.getElementById('spelling-slots');
+      const deckContainer = document.getElementById('spelling-letters-deck');
+      slotsContainer.innerHTML = '';
+      deckContainer.innerHTML = '';
+
+      // Initialize slot boxes based on target length
+      for (let i = 0; i < state.spellingTarget.length; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'w-9 h-11 sm:w-11 sm:h-12 border-b-4 border-gray-300 rounded-lg flex items-center justify-center text-lg sm:text-xl font-black text-gray-700 bg-white shadow-sm';
+        slot.id = `spelling-slot-${i}`;
+        slotsContainer.appendChild(slot);
+      }
+
+      // Generate letter tiles (letters + 2 dummy random letters)
+      const letters = state.spellingTarget.split('');
+      const alphabet = "abcdefghijklmnopqrstuvwxyz";
+      for (let i = 0; i < 2; i++) {
+        letters.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+      }
+      letters.sort(() => 0.5 - Math.random());
+
+      letters.forEach((char, idx) => {
+        const tile = document.createElement('button');
+        tile.className = 'letter-tile w-10 h-11 sm:w-12 sm:h-12 rounded-xl text-lg sm:text-xl font-black text-gray-800 flex items-center justify-center';
+        tile.innerText = char;
+        tile.id = `tile-${idx}`;
+        tile.onclick = () => tapSpellingLetter(char, `tile-${idx}`);
+        deckContainer.appendChild(tile);
+      });
+    }
+
+    function tapSpellingLetter(char, tileId) {
+      if (state.isAnswered) return;
+      if (state.spellingUserInput.length >= state.spellingTarget.length) return;
+
+      playSound('click');
+      const tile = document.getElementById(tileId);
+      tile.classList.add('used');
+
+      state.spellingUserInput.push({ char, tileId });
+      renderSpellingSlots();
+
+      // Check answer when all slots filled
+      if (state.spellingUserInput.length === state.spellingTarget.length) {
+        checkSpellingResult();
+      }
+    }
+
+    function renderSpellingSlots() {
+      for (let i = 0; i < state.spellingTarget.length; i++) {
+        const slot = document.getElementById(`spelling-slot-${i}`);
+        if (state.spellingUserInput[i]) {
+          slot.innerText = state.spellingUserInput[i].char;
+          slot.classList.add('border-blue-400', 'bg-blue-50/50');
+        } else {
+          slot.innerText = '';
+          slot.classList.remove('border-blue-400', 'bg-blue-50/50');
+        }
+      }
+    }
+
+    function removeLastLetter() {
+      if (state.isAnswered || state.spellingUserInput.length === 0) return;
+      playSound('click');
+      const removed = state.spellingUserInput.pop();
+      const tile = document.getElementById(removed.tileId);
+      if (tile) tile.classList.remove('used');
+      renderSpellingSlots();
+    }
+
+    function clearSpelling() {
+      if (state.isAnswered) return;
+      playSound('click');
+      state.spellingUserInput.forEach(item => {
+        const tile = document.getElementById(item.tileId);
+        if (tile) tile.classList.remove('used');
+      });
+      state.spellingUserInput = [];
+      renderSpellingSlots();
+    }
+
+    function checkSpellingResult() {
+      state.isAnswered = true;
+      clearInterval(state.timerInterval);
+
+      // Always reveal full Japanese sentence upon answering
+      document.getElementById('example-sentence-jp').classList.remove('hidden');
+
+      const enteredWord = state.spellingUserInput.map(i => i.char).join('').toLowerCase();
+      const q = state.questions[state.currentIndex];
+
+      if (enteredWord === state.spellingTarget) {
+        playSound('correct');
+        state.streak += 1;
+        if (state.streak > state.maxStreak) state.maxStreak = state.streak;
+        const xpGained = 15 + (state.streak >= 3 ? 5 : 0);
+        state.xp += xpGained;
+        state.correctCount += 1;
+        updateStatsUI();
+
+        for (let i = 0; i < state.spellingTarget.length; i++) {
+          const slot = document.getElementById(`spelling-slot-${i}`);
+          slot.classList.add('bg-green-100', 'border-green-500', 'text-green-700');
+        }
+
+        recordReviewWord(q.item, true);
+        showFeedbackBanner(true, 'パーフェクト！スペル正解 ✨', `${q.item.word} : ${q.item.mean}`);
+      } else {
+        playSound('wrong');
+        for (let i = 0; i < state.spellingTarget.length; i++) {
+          const slot = document.getElementById(`spelling-slot-${i}`);
+          slot.classList.add('bg-red-100', 'border-red-500', 'text-red-700');
+        }
+
+        document.getElementById('question-card').classList.add('animate-shake');
+        setTimeout(() => document.getElementById('question-card').classList.remove('animate-shake'), 400);
+
+        state.hearts = Math.max(0, state.hearts - 1);
+        state.streak = 0;
+        updateStatsUI();
+
+        recordReviewWord(q.item, false, 'スペルミス');
+        showFeedbackBanner(false, 'おしい！スペルが違います', `正しいつづり: <strong>${q.item.word}</strong> (${q.item.mean})`);
+      }
+    }
+
+    // ==========================================
+    // 10. BOTTOM FEEDBACK BANNER & TRANSITIONS
+    // ==========================================
+    function showFeedbackBanner(isSuccess, title, subtitle) {
+      const banner = document.getElementById('feedback-banner');
+      const icon = document.getElementById('feedback-icon');
+      const headline = document.getElementById('feedback-headline');
+      const subtext = document.getElementById('feedback-subtext');
+      const nextBtn = document.getElementById('feedback-next-btn');
+
+      if (isSuccess) {
+        banner.className = 'fixed bottom-0 left-0 right-0 p-4 border-t-2 z-50 transition-transform duration-200 bg-[#d7ffb8] border-[#58cc02] text-[#2e7d32]';
+        icon.className = 'w-12 h-12 rounded-full flex items-center justify-center text-2xl font-black bg-white text-[#58cc02] shadow';
+        icon.innerText = '✓';
+        nextBtn.className = 'btn-duo btn-green w-full sm:w-44 py-3 rounded-2xl font-black text-base shadow';
+      } else {
+        banner.className = 'fixed bottom-0 left-0 right-0 p-4 border-t-2 z-50 transition-transform duration-200 bg-[#ffdfe0] border-[#ea2b2b] text-[#ea2b2b]';
+        icon.className = 'w-12 h-12 rounded-full flex items-center justify-center text-2xl font-black bg-white text-[#ea2b2b] shadow';
+        icon.innerText = '✕';
+        nextBtn.className = 'btn-duo bg-[#ff4b4b] hover:bg-[#ff5a5a] text-white w-full sm:w-44 py-3 rounded-2xl font-black text-base shadow';
+      }
+
+      headline.innerText = title;
+      subtext.innerHTML = subtitle;
+      banner.classList.remove('translate-y-full');
+    }
+
+    function hideFeedbackBanner() {
+      const banner = document.getElementById('feedback-banner');
+      banner.classList.add('translate-y-full');
+    }
+
+    function handleNextQuestion() {
+      playSound('click');
+      hideFeedbackBanner();
+
+      // Check Hearts
+      if (state.hearts <= 0) {
+        finishQuiz(false); // Game Over
+        return;
+      }
+
+      state.currentIndex++;
+      if (state.currentIndex < state.questions.length) {
+        loadQuestion(state.currentIndex);
+      } else {
+        finishQuiz(true); // Completed
+      }
+    }
+
+    function recordReviewWord(wordItem, isCorrect, reason = '') {
+      state.reviewedWords.push({
+        word: wordItem.word,
+        pos: wordItem.pos,
+        mean: wordItem.mean,
+        exEn: wordItem.exEn,
+        isCorrect: isCorrect,
+        reason: reason
+      });
+    }
+
+    function speakCurrentSentence() {
+      playSound('click');
+      const q = state.questions[state.currentIndex];
+      if (q && q.item) {
+        speakText(q.item.exEn);
+      }
+    }
+
+    // ==========================================
+    // 11. RESULTS SCREEN
+    // ==========================================
+    function finishQuiz(completedNormally) {
+      clearInterval(state.timerInterval);
+      showScreen('result-screen');
+
+      const mascot = document.getElementById('result-mascot');
+      const title = document.getElementById('result-title');
+      const accuracy = Math.round((state.correctCount / state.questions.length) * 100) || 0;
+
+      if (!completedNormally && state.hearts <= 0) {
+        mascot.innerText = '💔';
+        title.innerText = 'ハートがなくなりました！';
+        playSound('wrong');
+      } else if (accuracy >= 80) {
+        mascot.innerText = '🦉 🎉';
+        title.innerText = 'お見事！素晴らしいスコアです！';
+        playSound('correct');
+      } else {
+        mascot.innerText = '🌱 💪';
+        title.innerText = 'レッスン完了！復習してみよう！';
+        playSound('correct');
+      }
+
+      document.getElementById('final-xp').innerText = `⚡ ${state.xp}`;
+      document.getElementById('final-accuracy').innerText = `${accuracy}%`;
+      document.getElementById('final-combo').innerText = `🔥 ${state.maxStreak}`;
+      document.getElementById('reviewed-count-badge').innerText = `${state.reviewedWords.length}語`;
+
+      // Render Reviewed Words
+      const listContainer = document.getElementById('reviewed-words-list');
+      listContainer.innerHTML = '';
+
+      state.reviewedWords.forEach(r => {
+        const row = document.createElement('div');
+        row.className = `p-3 rounded-2xl border flex items-center justify-between text-xs sm:text-sm ${
+          r.isCorrect ? 'bg-green-50/70 border-green-200 text-green-950' : 'bg-red-50/70 border-red-200 text-red-950'
+        }`;
+        row.innerHTML = `
+          <div class="space-y-0.5">
+            <div class="flex items-center space-x-2">
+              <span class="font-black text-sm">${r.word}</span>
+              <span class="text-xs text-gray-500 font-bold">${r.pos}</span>
+              <span class="font-bold text-gray-700">${r.mean}</span>
+            </div>
+            <div class="text-xs text-gray-500 italic">${r.exEn}</div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="speakText('${r.word}')" class="text-base p-1 hover:bg-white rounded-lg">🔊</button>
+            <span class="text-base font-black">${r.isCorrect ? '✅' : '❌'}</span>
+          </div>
+        `;
+        listContainer.appendChild(row);
+      });
+    }
+
+    // ==========================================
+    // 12. RUN ON PAGE LOAD
+    // ==========================================
+    window.onload = function () {
+      renderUnitGrid();
+    };
+  </script>
+</body>
+</html>
